@@ -9,15 +9,21 @@ export class MemoryDB {
   private constructor() {
     // Inicializar Firebase Admin si no está inicializado
     if (getApps().length === 0) {
-      if (!config.GOOGLE_APPLICATION_CREDENTIALS) {
+      let serviceAccount;
+
+      if (config.FIREBASE_SERVICE_ACCOUNT) {
+        console.log("🛠️ Inicializando Firebase usando FIREBASE_SERVICE_ACCOUNT (string)");
+        serviceAccount = JSON.parse(config.FIREBASE_SERVICE_ACCOUNT);
+      } else if (config.GOOGLE_APPLICATION_CREDENTIALS) {
+        console.log(`🛠️ Inicializando Firebase usando archivo: ${config.GOOGLE_APPLICATION_CREDENTIALS}`);
+        serviceAccount = JSON.parse(
+          readFileSync(config.GOOGLE_APPLICATION_CREDENTIALS, "utf8")
+        );
+      } else {
         throw new Error(
-          "No se ha configurado GOOGLE_APPLICATION_CREDENTIALS en .env"
+          "Debe configurar FIREBASE_SERVICE_ACCOUNT (JSON string) o GOOGLE_APPLICATION_CREDENTIALS (ruta de archivo) en su entorno."
         );
       }
-
-      const serviceAccount = JSON.parse(
-        readFileSync(config.GOOGLE_APPLICATION_CREDENTIALS, "utf8")
-      );
 
       initializeApp({
         credential: cert(serviceAccount),

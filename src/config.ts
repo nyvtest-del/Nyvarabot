@@ -48,6 +48,7 @@ const envSchema = z.object({
   DB_PATH: z.string().default("./memory.db"),
 
   // Servicios opcionales
+  FIREBASE_SERVICE_ACCOUNT: z.string().default(""),
   GOOGLE_APPLICATION_CREDENTIALS: z.string().default(""),
   OPENAI_API_KEY: z.string().default(""),
   OPENAI_MODELS: z
