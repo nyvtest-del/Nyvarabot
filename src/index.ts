@@ -29,6 +29,21 @@ async function main(): Promise<void> {
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 
+  // ─── Health check para Easypanel ──────────────────────
+  // Muchos paneles (como Easypanel) matan el bot si no ven un puerto abierto.
+  try {
+    const { createServer } = await import("node:http");
+    const port = process.env.PORT || 3000;
+    createServer((_, res) => {
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("Nyvarabot is ALIVE\n");
+    }).listen(port, () => {
+      console.log(`🌐 Servidor de salud activo en puerto ${port}`);
+    });
+  } catch (e) {
+    console.warn("⚠️ No se pudo iniciar el servidor de salud, pero el bot seguirá intentando...");
+  }
+
   // Arrancar con long polling
   console.log(`📡 Usuarios permitidos: [${config.TELEGRAM_ALLOWED_USER_IDS.join(", ")}]`);
   console.log(`🧠 LLM: Cadena híbrida (OpenAI → Groq → OpenRouter)`);

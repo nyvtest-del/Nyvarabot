@@ -4,3 +4,4 @@ dist/
 *.db
 *.db-journal
 service-account.json
+easypanel_env.txt
