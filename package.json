@@ -1,0 +1,35 @@
+{
+  "name": "nyvarabot",
+  "version": "1.0.0",
+  "description": "Agente de IA personal vía Telegram — local, seguro, modular",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "telegram",
+    "ai",
+    "agent",
+    "groq",
+    "bot"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "firebase-admin": "^13.7.0",
+    "grammy": "^1.31.0",
+    "groq-sdk": "^0.8.0",
+    "openai": "^6.27.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
