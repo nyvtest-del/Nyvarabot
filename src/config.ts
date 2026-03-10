@@ -21,7 +21,7 @@ const envSchema = z.object({
   GROQ_MODELS: z
     .string()
     .default(
-      "llama-3.3-70b-versatile,llama-3.1-70b-versatile,llama-3.3-70b-specdec,mixtral-8x7b-32768,llama-3.1-8b-instant"
+      "llama-3.3-70b-versatile,llama-3.1-405b-reasoning,llama-3.1-70b-versatile,mixtral-8x7b-32768,llama-3.1-8b-instant"
     )
     .transform((val) =>
       val
@@ -35,7 +35,7 @@ const envSchema = z.object({
   OPENROUTER_MODELS: z
     .string()
     .default(
-      "google/gemini-2.0-flash-lite-preview-02-05:free,google/gemini-2.0-flash-exp:free,meta-llama/llama-3.3-70b-instruct:free,meta-llama/llama-3.2-11b-vision-instruct:free,mistralai/mistral-7b-instruct:free,meta-llama/llama-3.1-8b-instruct:free"
+      "google/gemini-2.0-flash-lite-preview-02-05:free,google/gemini-2.0-flash-exp:free,meta-llama/llama-3.3-70b-instruct:free,meta-llama/llama-3.1-8b-instruct:free"
     )
     .transform((val) =>
       val
