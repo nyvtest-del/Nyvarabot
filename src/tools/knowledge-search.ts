@@ -73,7 +73,20 @@ export const knowledgeSearchTool: Tool = {
 
       // 2. Buscar contenido relevante (keyword match)
       const results: { file: string; content: string; score: number }[] = [];
-      const keywords = query.toLowerCase().split(/\s+/).filter(k => k.length > 2);
+
+      // Mejorar la extracción de keywords para no perder cosas como "D+" o "3D"
+      // Si la query completa es corta, usarla tal cual como keyword única
+      const rawQuery = query.trim();
+      const keywords = rawQuery.length <= 3
+        ? [rawQuery.toLowerCase()]
+        : rawQuery.toLowerCase().split(/\s+/).filter(k =>
+          k.length > 2 || /[^a-z]/.test(k) // Retener si tiene +3 letras O si tiene números/símbolos (ej: "D+", "3D")
+        );
+
+      // Si la query fue dividida y eliminó todo, usar la query original cruda
+      if (keywords.length === 0 && rawQuery.length > 0) {
+        keywords.push(rawQuery.toLowerCase());
+      }
 
       for (const file of filesToSearch) {
         const content = await fs.readFile(file, "utf-8");
