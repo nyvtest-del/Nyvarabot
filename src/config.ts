@@ -21,7 +21,7 @@ const envSchema = z.object({
   GROQ_MODELS: z
     .string()
     .default(
-      "llama-3.3-70b-versatile,qwen-2.5-coder-32b,llama-3.1-8b-instant,gemma-2-9b-it,llama-4-scout-17b"
+      "llama-3.3-70b-versatile,llama-3.1-8b-instant,gemma2-9b-it"
     )
     .transform((val) =>
       val
@@ -35,7 +35,7 @@ const envSchema = z.object({
   OPENROUTER_MODELS: z
     .string()
     .default(
-      "deepseek/deepseek-r1:free,deepseek/deepseek-v3:free,meta-llama/llama-3.3-70b-instruct:free,qwen/qwen-2.5-coder-32b:free,google/gemini-2.0-flash-exp:free,mistralai/mistral-7b-instruct:free"
+      "google/gemini-2.0-flash-lite-preview-02-05:free,google/gemini-2.0-flash-exp:free,meta-llama/llama-3.3-70b-instruct:free,deepseek/deepseek-r1,deepseek/deepseek-v3"
     )
     .transform((val) =>
       val
