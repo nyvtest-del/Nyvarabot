@@ -123,17 +123,38 @@ export class OpenRouterProvider implements LLMProvider {
 
       const choice = data.choices[0];
 
+      let content = choice.message.content || "";
+      const toolCalls = (choice.message.tool_calls ?? []).map((tc) => ({
+        id: tc.id,
+        type: "function" as const,
+        function: {
+          name: tc.function.name,
+          arguments: tc.function.arguments,
+        },
+      }));
+
+      // Parseo manual agresivo para interceptar pseudo-XML tool calls
+      // (ej: modelos Llama-3 en OpenRouter que filtran tags de función)
+      const exactRegex = /<function=([a-zA-Z0-9_]+)[\s\S]*?(\{[\s\S]*?\})?>(?:[\s\S]*?<\/function>)?/g;
+
+      let match;
+      while ((match = exactRegex.exec(content)) !== null) {
+        const name = match[1];
+        const argsStr = match[2] || "{}";
+
+        toolCalls.push({
+          id: `call_manual_or_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          type: "function",
+          function: { name, arguments: argsStr }
+        });
+
+        content = content.replace(match[0], "").trim();
+      }
+
       return {
-        content: choice.message.content,
-        toolCalls: (choice.message.tool_calls ?? []).map((tc) => ({
-          id: tc.id,
-          type: "function" as const,
-          function: {
-            name: tc.function.name,
-            arguments: tc.function.arguments,
-          },
-        })),
-        finishReason: choice.finish_reason ?? "stop",
+        content,
+        toolCalls,
+        finishReason: choice.finish_reason ?? (toolCalls.length > 0 ? "tool_calls" : "stop"),
       };
     } finally {
       clearTimeout(timeout);

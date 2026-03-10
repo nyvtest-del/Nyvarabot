@@ -83,32 +83,17 @@ export class GroqProvider implements LLMProvider {
       },
     }));
 
-    // Fallback: Parseo manual de pseudo-tool-calls inyectados en el texto
-    // Algunos modelos (especialmente familia Llama) devuelven el llamado como texto XML
-    // Ej: <function=knowledge_search{"query": "Fusicare"}></function>
-    // Ej: <function=knowledge_search>{"query": "Fusicare"}</function>
-    const fallbackRegex = /<function=([a-zA-Z0-9_]+)(?:>(\{.*?\})|<\/function>|(\{.*?\})>.*?<\/function>)/g;
-
-    // Simplificando regex para capturar el nombre y el JSON, esté donde esté
-    // Cubre: <function=name{json}></function> y <function=name>{json}</function>
-    const robustRegex = /<function=([a-zA-Z0-9_]+)[^>]*?>?(\{.*?\})?(?:<\/function>)?/g;
+    // Parseo manual agresivo para interceptar pseudo-XML tool calls
+    // (ej: modelos Llama-3 en OpenRouter o Groq que filtran tags de función)
+    const exactRegex = /<function=([a-zA-Z0-9_]+)[\s\S]*?(\{[\s\S]*?\})?>(?:[\s\S]*?<\/function>)?/g;
 
     let match;
-    // Creamos un regex muy permisivo para extraer toolName y argumentos JSON
-    const extractRegex = /<function=([a-zA-Z0-9_]+)[^>]*?(\{.*?\})[^>]*?>?(?:.*?<\/function>)?/g;
-
-    // Para simplificar, mejor buscar cualquier <function=Nombre> o <function=Nombre{JSON}>
-    const simpleRegex = /<function=([a-zA-Z0-9_]+)[\s>]*(\{.*?\})?.*?(?:<\/function>)?/g;
-
-    // Regex definitiva para el caso exacto de the screenshot: <function=knowledge_search{"query": "Fusicare"}></function>
-    const exactRegex = /<function=([a-zA-Z0-9_]+)(\{.*?\})?>(?:.*?<\/function>)?/g;
-
     while ((match = exactRegex.exec(content)) !== null) {
       const name = match[1];
       const argsStr = match[2] || "{}";
 
       toolCalls.push({
-        id: `call_manual_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id: `call_manual_gq_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         type: "function",
         function: { name, arguments: argsStr }
       });
