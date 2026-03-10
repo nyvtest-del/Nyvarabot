@@ -6,16 +6,39 @@ import { randomUUID } from "node:crypto";
 
 /**
  * Herramienta para generar imágenes.
- * Soporta dos métodos:
- *   1. Imagen 3 API (Nano Banana Pro) — alta calidad dedicada
- *   2. Gemini Flash nativo (Nano Banana 2) — gratis en free tier
- * Con fallback automático entre múltiples API keys.
+ * Soporta múltiples modelos con fallback automático entre API keys.
+ *
+ * Modelos disponibles (Gemini — generateContent con responseModalities):
+ *   - gemini-2.0-flash-exp-image-generation  (Nano Banana 2 — gratis en free tier)
+ *   - gemini-3-pro-image-preview             (Nano Banana Pro — mejor calidad)
+ *   - gemini-3.1-flash-image-preview         (Nano Banana 2 más nuevo)
+ *   - gemini-2.5-flash-image                 (Gemini 2.5 con imagen)
+ *
+ * Modelos disponibles (Imagen — predict, requiere plan de pago):
+ *   - imagen-4.0-generate-001
+ *   - imagen-4.0-fast-generate-001
+ *   - imagen-4.0-ultra-generate-001
  */
+
+// Lista de modelos Gemini a probar en orden de preferencia
+const GEMINI_IMAGE_MODELS = [
+    "gemini-2.0-flash-exp-image-generation",
+    "gemini-3.1-flash-image-preview",
+    "gemini-3-pro-image-preview",
+    "gemini-2.5-flash-image",
+];
+
+const IMAGEN_MODELS = [
+    "imagen-4.0-fast-generate-001",
+    "imagen-4.0-generate-001",
+    "imagen-4.0-ultra-generate-001",
+];
+
 export const imageGenerateTool: Tool = {
     definition: {
         name: "image_generate",
         description:
-            "Genera imágenes de alta calidad. Métodos: 'gemini' (Nano Banana 2 o Pro, genera imagen dentro del chat, gratis en free tier) o 'imagen' (Imagen 3 API dedicada, mejor calidad pero consume créditos). Por defecto usa 'gemini'.",
+            "Genera imágenes de alta calidad. Métodos: 'gemini' (gratis en free tier, usa Nano Banana) o 'imagen' (Imagen 4, requiere plan de pago, máxima calidad). Por defecto usa 'gemini'.",
         parameters: {
             type: "object",
             properties: {
@@ -28,7 +51,7 @@ export const imageGenerateTool: Tool = {
                     type: "string",
                     enum: ["gemini", "imagen"],
                     description:
-                        "'gemini' = Nano Banana 2/Pro gratis via Gemini Flash. 'imagen' = Imagen 3 API dedicada (consume créditos).",
+                        "'gemini' = Nano Banana gratis. 'imagen' = Imagen 4 (plan de pago).",
                     default: "gemini",
                 },
                 aspectRatio: {
@@ -51,65 +74,53 @@ export const imageGenerateTool: Tool = {
             return "Error: GOOGLE_API_KEYS no configurada. Agrega al menos una API key de Google AI Studio.";
         }
 
-        // Intentar con cada API key hasta que una funcione
-        for (let i = 0; i < keys.length; i++) {
-            const apiKey = keys[i];
-            console.log(
-                `🎨 Intentando con API key #${i + 1}/${keys.length} (método: ${method})...`
-            );
+        const models = method === "imagen" ? IMAGEN_MODELS : GEMINI_IMAGE_MODELS;
 
-            try {
-                let base64Image: string | null = null;
+        // Intentar con cada API key + cada modelo
+        for (const apiKey of keys) {
+            for (const model of models) {
+                console.log(`🎨 Probando ${model} con key ...${apiKey.slice(-6)}...`);
 
-                if (method === "gemini") {
-                    base64Image = await generateWithGemini(prompt, aspectRatio, apiKey);
-                } else {
-                    base64Image = await generateWithImagen(prompt, aspectRatio, apiKey);
-                }
+                try {
+                    let base64Image: string | null = null;
 
-                if (!base64Image) {
-                    console.warn(`⚠️ Key #${i + 1} no devolvió imagen, probando siguiente...`);
+                    if (method === "imagen") {
+                        base64Image = await generateWithImagen(prompt, aspectRatio, apiKey, model);
+                    } else {
+                        base64Image = await generateWithGemini(prompt, aspectRatio, apiKey, model);
+                    }
+
+                    if (!base64Image) continue;
+
+                    // Guardar imagen
+                    const tempDir = path.join(process.cwd(), "markdowns", "temp");
+                    await fs.mkdir(tempDir, { recursive: true });
+                    const fileName = `gen_${randomUUID()}.png`;
+                    const filePath = path.join(tempDir, fileName);
+                    await fs.writeFile(filePath, Buffer.from(base64Image, "base64"));
+
+                    console.log(`✅ Imagen generada con ${model}: ${filePath}`);
+                    return `✅ Imagen generada con ${model}.\nSENT_IMAGE_PATH:${filePath}`;
+                } catch (error) {
+                    const msg = error instanceof Error ? error.message : String(error);
+                    console.warn(`⚠️ ${model} falló: ${msg}`);
+                    // Si es error de cuota, probar con la siguiente key/modelo
                     continue;
                 }
-
-                // Guardar imagen en carpeta temporal
-                const tempDir = path.join(process.cwd(), "markdowns", "temp");
-                await fs.mkdir(tempDir, { recursive: true });
-                const fileName = `gen_${randomUUID()}.png`;
-                const filePath = path.join(tempDir, fileName);
-                await fs.writeFile(filePath, Buffer.from(base64Image, "base64"));
-
-                console.log(`✅ Imagen generada con key #${i + 1}: ${filePath}`);
-                return `✅ Imagen generada con ${method === "gemini" ? "Nano Banana (Gemini)" : "Imagen 3 Pro"}.\nSENT_IMAGE_PATH:${filePath}`;
-            } catch (error) {
-                const errMsg =
-                    error instanceof Error ? error.message : String(error);
-                console.warn(`⚠️ Key #${i + 1} falló: ${errMsg}`);
-
-                // Si es error de cuota/rate limit, probar con la siguiente key
-                if (
-                    errMsg.includes("429") ||
-                    errMsg.includes("quota") ||
-                    errMsg.includes("RESOURCE_EXHAUSTED")
-                ) {
-                    continue;
-                }
-                // Si es otro tipo de error, también probar la siguiente
-                continue;
             }
         }
 
-        return "Error: Todas las API keys están agotadas o fallaron. Verifica tus claves en GOOGLE_API_KEYS.";
+        return "Error: No se pudo generar la imagen. Todas las API keys/modelos están agotados o no disponibles. Verifica tus claves en GOOGLE_API_KEYS o añade más keys de otros proyectos de Google AI Studio.";
     },
 };
 
-// ─── Método 1: Gemini Flash con imagen nativa (Nano Banana 2) ───
+// ─── Gemini: generateContent con responseModalities ─────
 async function generateWithGemini(
     prompt: string,
     aspectRatio: string,
-    apiKey: string
+    apiKey: string,
+    model: string
 ): Promise<string | null> {
-    const model = "gemini-2.0-flash-exp"; // Soporta generación de imágenes nativa
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
@@ -120,48 +131,41 @@ async function generateWithGemini(
                 {
                     parts: [
                         {
-                            text: `Generate an image with the following description. Output ONLY the image, no text explanation.\n\nDescription: ${prompt}\nAspect ratio: ${aspectRatio}`,
+                            text: `Generate a high-quality image based on this description. Output ONLY the image.\n\nDescription: ${prompt}\nAspect ratio: ${aspectRatio}`,
                         },
                     ],
                 },
             ],
             generationConfig: {
                 responseModalities: ["IMAGE", "TEXT"],
-                responseMimeType: "text/plain",
             },
         }),
     });
 
     if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(
-            `Gemini API ${response.status}: ${JSON.stringify(errData)}`
-        );
+        throw new Error(`${model} ${response.status}: ${JSON.stringify(errData).substring(0, 200)}`);
     }
 
     const data = await response.json();
-
-    // Buscar la parte de imagen en la respuesta
     const candidates = data.candidates || [];
     for (const candidate of candidates) {
-        const parts = candidate.content?.parts || [];
-        for (const part of parts) {
+        for (const part of candidate.content?.parts || []) {
             if (part.inlineData?.data) {
-                return part.inlineData.data; // base64
+                return part.inlineData.data;
             }
         }
     }
-
     return null;
 }
 
-// ─── Método 2: Imagen 3 API dedicada (Nano Banana Pro) ──────────
+// ─── Imagen: predict ────────────────────────────────────
 async function generateWithImagen(
     prompt: string,
     aspectRatio: string,
-    apiKey: string
+    apiKey: string,
+    model: string
 ): Promise<string | null> {
-    const model = "imagen-3.0-generate-001";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${apiKey}`;
 
     const response = await fetch(url, {
@@ -169,18 +173,13 @@ async function generateWithImagen(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             instances: [{ prompt }],
-            parameters: {
-                sampleCount: 1,
-                aspectRatio,
-            },
+            parameters: { sampleCount: 1, aspectRatio },
         }),
     });
 
     if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(
-            `Imagen API ${response.status}: ${JSON.stringify(errData)}`
-        );
+        throw new Error(`${model} ${response.status}: ${JSON.stringify(errData).substring(0, 200)}`);
     }
 
     const data = await response.json();
