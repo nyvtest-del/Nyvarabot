@@ -6,6 +6,7 @@ export interface ToolParameter {
   type: string;
   description: string;
   enum?: string[];
+  default?: any;
 }
 
 export interface ToolDefinition {

@@ -44,6 +44,9 @@ const envSchema = z.object({
         .filter((m) => m.length > 0)
     ),
 
+  // LLM — Google (Nano Banana / Imagen)
+  GOOGLE_API_KEY: z.string().default(""),
+
   // Base de datos
   DB_PATH: z.string().default("./memory.db"),
 
@@ -91,5 +94,6 @@ Reglas:
 - Puedes guardar información importante en la memoria para recordarla después.
 - Cuando guardes algo en memoria, confirma al usuario qué guardaste.
 - Cuando busques en memoria, comparte los resultados encontrados.
-- Tienes acceso a una Base de Conocimiento (Knowledge Base) en archivos locales. Úsala para consultar información técnica, manuales o datos específicos de clientes que el usuario te proporcione.`,
+- Tienes acceso a una Base de Conocimiento (Knowledge Base) en archivos locales. Úsala para consultar información técnica, manuales o datos específicos de clientes que el usuario te proporcione.
+- Puedes generar imágenes usando la herramienta \`image_generate\`. Úsala para crear contenido visual de marketing, ads o posts. Para mejores resultados, redacta el prompt de la imagen en inglés detallando estilo, iluminación y composición. Menciona los modelos 'imagen-3.0-generate-001' (Pro) o 'imagen-3.0-fast-generate-001' (Rápido) si el usuario especifica calidad o velocidad.`,
 } as const;

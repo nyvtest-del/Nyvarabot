@@ -1,7 +1,9 @@
-import { Bot } from "grammy";
+import { Bot, InputFile } from "grammy";
 import { config } from "./config.js";
 import { runAgent } from "./agent.js";
 import type { MemoryDB } from "./memory/index.js";
+import fs from "node:fs";
+import path from "node:path";
 
 // ─── Bot de Telegram ────────────────────────────────────
 
@@ -28,11 +30,11 @@ export function createBot(memory: MemoryDB): Bot {
   bot.command("start", async (ctx) => {
     await ctx.reply(
       "👋 ¡Hola! Soy **Nyvarabot**, tu asistente personal.\n\n" +
-        "Puedo:\n" +
-        "• Responder preguntas\n" +
-        "• Recordar información\n" +
-        "• Decirte la hora\n\n" +
-        "Escríbeme lo que necesites 🚀",
+      "Puedo:\n" +
+      "• Responder preguntas\n" +
+      "• Recordar información\n" +
+      "• Decirte la hora\n\n" +
+      "Escríbeme lo que necesites 🚀",
       { parse_mode: "Markdown" }
     );
   });
@@ -90,16 +92,34 @@ export function createBot(memory: MemoryDB): Bot {
 
       clearInterval(typingInterval);
 
-      // Enviar respuesta (dividirla si es muy larga)
+      // --- Manejo de Imágenes ---
+      // Buscar si el resultado contiene el tag de imagen generada
+      let responseText = result.response;
+      const imageTagMatch = responseText.match(/SENT_IMAGE_PATH:(.+)/);
+
+      if (imageTagMatch && imageTagMatch[1]) {
+        const imagePath = imageTagMatch[1].trim();
+        // Limpiar el tag del texto final
+        responseText = responseText.replace(/SENT_IMAGE_PATH:.+/, "").trim();
+
+        if (fs.existsSync(imagePath)) {
+          console.log(`📸 Enviando imagen: ${imagePath}`);
+          await ctx.replyWithPhoto(new InputFile(imagePath)).catch(e => {
+            console.error("❌ Error enviando foto:", e);
+          });
+        }
+      }
+
+      // Enviar respuesta de texto (dividirla si es muy larga)
       const maxLength = 4096;
-      if (result.response.length <= maxLength) {
-        await ctx.reply(result.response, { parse_mode: "Markdown" }).catch(
-          // Si falla con Markdown, enviar sin formato
-          async () => await ctx.reply(result.response)
-        );
+      if (responseText.length <= maxLength) {
+        if (responseText.length > 0) {
+          await ctx.reply(responseText, { parse_mode: "Markdown" }).catch(
+            async () => await ctx.reply(responseText)
+          );
+        }
       } else {
-        // Dividir en chunks
-        const chunks = splitMessage(result.response, maxLength);
+        const chunks = splitMessage(responseText, maxLength);
         for (const chunk of chunks) {
           await ctx.reply(chunk, { parse_mode: "Markdown" }).catch(
             async () => await ctx.reply(chunk)
@@ -108,7 +128,7 @@ export function createBot(memory: MemoryDB): Bot {
       }
 
       console.log(
-        `📤 Respuesta enviada (${result.iterations} iteraciones, ${result.response.length} chars)`
+        `📤 Respuesta enviada (${result.iterations} iteraciones, ${responseText.length} chars)`
       );
     } catch (error) {
       clearInterval(typingInterval);
