@@ -72,19 +72,40 @@ export class GroqProvider implements LLMProvider {
     const response = await (this.client.chat.completions.create as any)(params);
     const choice = response.choices[0];
 
+    let content = choice.message.content || "";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const toolCalls = (choice.message.tool_calls ?? []).map((tc: any) => ({
+      id: tc.id,
+      type: "function" as const,
+      function: {
+        name: tc.function.name,
+        arguments: tc.function.arguments,
+      },
+    }));
+
+    // Parseo manual agresivo para interceptar pseudo-XML tool calls
+    // (ej: modelos Llama-3 en OpenRouter o Groq que filtran tags de función)
+    const exactRegex = /<function=([a-zA-Z0-9_]+)[\s\S]*?(\{[\s\S]*?\})?>(?:[\s\S]*?<\/function>)?/g;
+
+    let match;
+    while ((match = exactRegex.exec(content)) !== null) {
+      const name = match[1];
+      const argsStr = match[2] || "{}";
+
+      toolCalls.push({
+        id: `call_manual_gq_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        type: "function",
+        function: { name, arguments: argsStr }
+      });
+
+      // Remover la etiqueta del texto para que no se vea en WhatsApp
+      content = content.replace(match[0], "").trim();
+    }
+
     return {
-      content: choice.message.content,
-      toolCalls: (choice.message.tool_calls ?? []).map(
-        (tc: { id: string; function: { name: string; arguments: string } }) => ({
-          id: tc.id,
-          type: "function" as const,
-          function: {
-            name: tc.function.name,
-            arguments: tc.function.arguments,
-          },
-        })
-      ),
-      finishReason: choice.finish_reason ?? "stop",
+      content,
+      toolCalls,
+      finishReason: choice.finish_reason ?? (toolCalls.length > 0 ? "tool_calls" : "stop"),
     };
   }
 }

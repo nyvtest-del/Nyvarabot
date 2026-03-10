@@ -4,6 +4,7 @@ import { getCurrentTimeTool } from "./get-current-time.js";
 import { memorySaveTool } from "./memory-save.js";
 import { memorySearchTool } from "./memory-search.js";
 import { knowledgeSearchTool } from "./knowledge-search.js";
+import { imageGenerateTool } from "./image-generate.js";
 
 export type { Tool, ToolContext } from "./types.js";
 
@@ -69,3 +70,4 @@ toolRegistry.register(getCurrentTimeTool);
 toolRegistry.register(memorySaveTool);
 toolRegistry.register(memorySearchTool);
 toolRegistry.register(knowledgeSearchTool);
+toolRegistry.register(imageGenerateTool);

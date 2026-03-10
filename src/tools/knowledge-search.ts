@@ -2,58 +2,123 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Tool } from "./types.js";
 
-const KNOWLEDGE_PATH = path.join(process.cwd(), "markdowns", "hansbiomed");
-
+/**
+ * Herramienta para buscar información en la base de conocimiento local (carpeta markdowns).
+ * Lee los archivos markdown y busca coincidencias con la consulta.
+ */
 export const knowledgeSearchTool: Tool = {
     definition: {
         name: "knowledge_search",
-        description: "Busca y lee información oficial sobre la empresa HansBiomed y sus productos (MINT, Klardie, Lion, Fusicare). Usa esto siempre que el usuario pregunte algo técnico, comercial o general sobre la empresa para evitar inventar datos.",
+        description: "Busca información detallada sobre HansBiomed, sus productos (MINT, Klardie, Lion, Fusicare), procesos o marketing en los archivos locales de conocimiento (markdowns). Úsala siempre para evitar inventar datos.",
         parameters: {
             type: "object",
             properties: {
-                topic: {
+                query: {
                     type: "string",
-                    description: "El producto o tema específico a buscar (ej: 'MINT', 'Empresa', 'Lion'). Si se deja vacío, listará todos los temas disponibles.",
+                    description: "La búsqueda o palabras clave (ej: 'MINT Lift', 'Klardie D+', 'Lion HansBiomed').",
+                },
+                client: {
+                    type: "string",
+                    description: "Opcional: El nombre de la carpeta del sub-tema si se conoce (ej: 'hansbiomed').",
                 },
             },
-            required: [],
+            required: ["query"],
         },
     },
-
-    async execute(args) {
-        const topic = (args.topic as string || "").toLowerCase();
+    execute: async (args: Record<string, unknown>) => {
+        const query = args.query as string;
+        const client = args.client as string | undefined;
+        const baseDir = path.join(process.cwd(), "markdowns");
 
         try {
-            const files = await fs.readdir(KNOWLEDGE_PATH);
+            // 1. Obtener lista de archivos a buscar
+            let filesToSearch: string[] = [];
 
-            // Si no hay tópico, listar archivos disponibles
-            if (!topic) {
-                return JSON.stringify({
-                    message: "Selecciona un tema o producto para obtener detalles específicos.",
-                    available_topics: files.map(f => f.replace(".md", ""))
-                });
+            if (client) {
+                // Buscar la carpeta del cliente de forma case-insensitive
+                try {
+                    const dirs = await fs.readdir(baseDir);
+                    const match = dirs.find(d => d.toLowerCase() === client.toLowerCase());
+                    if (match) {
+                        const clientDir = path.join(baseDir, match);
+                        const stats = await fs.stat(clientDir);
+                        if (stats.isDirectory()) {
+                            const files = await fs.readdir(clientDir);
+                            filesToSearch = files
+                                .filter(f => f.endsWith(".md") || f.endsWith(".txt"))
+                                .map(f => path.join(clientDir, f));
+                        }
+                    }
+                } catch {
+                    // Si falla, buscar en todo
+                }
             }
 
-            // Buscar el archivo más cercano
-            const matchedFile = files.find(f => f.toLowerCase().includes(topic));
-
-            if (!matchedFile) {
-                return JSON.stringify({
-                    error: `No encontré información sobre '${topic}'.`,
-                    available_topics: files.map(f => f.replace(".md", ""))
-                });
+            if (filesToSearch.length === 0) {
+                // Buscar recursivamente en todo markdowns/
+                async function getFiles(dir: string): Promise<string[]> {
+                    const entries = await fs.readdir(dir, { withFileTypes: true });
+                    const files = await Promise.all(entries.map((res) => {
+                        const resPath = path.resolve(dir, res.name);
+                        return res.isDirectory() ? getFiles(resPath) : resPath;
+                    }));
+                    return files.flat().filter(f => f.endsWith(".md") || f.endsWith(".txt"));
+                }
+                filesToSearch = await getFiles(baseDir);
             }
 
-            const content = await fs.readFile(path.join(KNOWLEDGE_PATH, matchedFile), "utf-8");
+            if (filesToSearch.length === 0) {
+                return "No hay archivos de conocimiento configurados todavía en la carpeta 'markdowns/'.";
+            }
 
-            return JSON.stringify({
-                topic: matchedFile.replace(".md", ""),
-                content: content.substring(0, 5000) // Limitar para no saturar el contexto del LLM
-            });
+            // 2. Buscar contenido relevante (keyword match)
+            const results: { file: string; content: string; score: number }[] = [];
+
+            const rawQuery = query.trim();
+            const keywords = rawQuery.length <= 3
+                ? [rawQuery.toLowerCase()]
+                : rawQuery.toLowerCase().split(/\s+/).filter(k =>
+                    k.length > 2 || /[^a-z]/.test(k)
+                );
+
+            if (keywords.length === 0 && rawQuery.length > 0) {
+                keywords.push(rawQuery.toLowerCase());
+            }
+
+            for (const file of filesToSearch) {
+                const content = await fs.readFile(file, "utf-8");
+                const lowerContent = content.toLowerCase();
+
+                const matchCount = keywords.filter(k => lowerContent.includes(k)).length;
+                if (matchCount > 0) {
+                    const paragraphs = content.split(/\n{2,}/);
+                    const relevant = paragraphs
+                        .filter(p => keywords.some(k => p.toLowerCase().includes(k)))
+                        .slice(0, 15)
+                        .join("\n\n");
+
+                    results.push({
+                        file: path.relative(baseDir, file),
+                        content: relevant.substring(0, 8000),
+                        score: matchCount
+                    });
+                }
+            }
+
+            if (results.length === 0) {
+                return `No encontré información relevante para "${query}" en los archivos de conocimiento.`;
+            }
+
+            results.sort((a, b) => b.score - a.score);
+
+            const formatted = results
+                .slice(0, 4)
+                .map(r => `--- ARCHIVO: ${r.file} ---\n${r.content}`)
+                .join("\n\n");
+            return `Resultados de búsqueda en conocimiento (${results.length} archivos):\n\n${formatted}`;
 
         } catch (error) {
-            console.error("Error en knowledge_search:", error);
-            return JSON.stringify({ error: "No se pudo acceder a la base de conocimientos local." });
+            return `Error buscando en conocimiento: ${error instanceof Error ? error.message : String(error)}`;
         }
     },
 };
