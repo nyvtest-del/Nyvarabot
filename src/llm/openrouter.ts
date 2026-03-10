@@ -133,22 +133,28 @@ export class OpenRouterProvider implements LLMProvider {
         },
       }));
 
-      // Parseo manual agresivo para interceptar pseudo-XML tool calls
-      // (ej: modelos Llama-3 en OpenRouter que filtran tags de función)
-      const exactRegex = /<function=([a-zA-Z0-9_]+)[\s\S]*?(\{[\s\S]*?\})?>(?:[\s\S]*?<\/function>)?/g;
+      // Parseo manual agresivo para interceptar múltiples formatos de tool calls
+      const formats = [
+        /<function=([a-zA-Z0-9_]+)[\s\S]*?(\{[\s\S]*?\})?>(?:[\s\S]*?<\/function>)?/g,
+        /<([a-zA-Z0-9_]+)>(\{[\s\S]*?\})<\/\1>/g,
+        /([a-zA-Z0-9_]+)>(\{[\s\S]*?\})<\/function>/g
+      ];
 
-      let match;
-      while ((match = exactRegex.exec(content)) !== null) {
-        const name = match[1];
-        const argsStr = match[2] || "{}";
+      for (const regex of formats) {
+        let match;
+        while ((match = regex.exec(content)) !== null) {
+          const name = match[1];
+          const argsStr = match[2] || "{}";
 
-        toolCalls.push({
-          id: `call_manual_or_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-          type: "function",
-          function: { name, arguments: argsStr }
-        });
-
-        content = content.replace(match[0], "").trim();
+          if (!toolCalls.some(tc => tc.function.name === name && tc.function.arguments === argsStr)) {
+            toolCalls.push({
+              id: `call_manual_or_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+              type: "function",
+              function: { name, arguments: argsStr }
+            });
+            content = content.replace(match[0], "").trim();
+          }
+        }
       }
 
       return {

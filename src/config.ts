@@ -21,7 +21,7 @@ const envSchema = z.object({
   GROQ_MODELS: z
     .string()
     .default(
-      "llama-3.3-70b-versatile,llama-3.1-8b-instant,gemma2-9b-it"
+      "llama-3.3-70b-versatile,llama-3.1-70b-versatile,llama3-70b-8192,mixtral-8x7b-32768,llama-3.1-8b-instant"
     )
     .transform((val) =>
       val
@@ -32,6 +32,7 @@ const envSchema = z.object({
 
   // LLM — OpenRouter (fallback)
   OPENROUTER_API_KEY: z.string().default(""),
+  // Lista de modelos de OpenRouter (fallback secundario)
   OPENROUTER_MODELS: z
     .string()
     .default(

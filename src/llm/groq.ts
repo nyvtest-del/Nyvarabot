@@ -83,23 +83,33 @@ export class GroqProvider implements LLMProvider {
       },
     }));
 
-    // Parseo manual agresivo para interceptar pseudo-XML tool calls
-    // (ej: modelos Llama-3 en OpenRouter o Groq que filtran tags de función)
-    const exactRegex = /<function=([a-zA-Z0-9_]+)[\s\S]*?(\{[\s\S]*?\})?>(?:[\s\S]*?<\/function>)?/g;
+    // Parseo manual agresivo para interceptar múltiples formatos de tool calls
+    // Formato 1: <function=name>{"arg": "val"}</function>
+    // Formato 2: <name>{"arg": "val"}</name>
+    // Formato 3: knowledge_search>{"arg": "val"}</function> (visto en logs)
+    const formats = [
+      /<function=([a-zA-Z0-9_]+)[\s\S]*?(\{[\s\S]*?\})?>(?:[\s\S]*?<\/function>)?/g,
+      /<([a-zA-Z0-9_]+)>(\{[\s\S]*?\})<\/\1>/g,
+      /([a-zA-Z0-9_]+)>(\{[\s\S]*?\})<\/function>/g
+    ];
 
-    let match;
-    while ((match = exactRegex.exec(content)) !== null) {
-      const name = match[1];
-      const argsStr = match[2] || "{}";
+    for (const regex of formats) {
+      let match;
+      while ((match = regex.exec(content)) !== null) {
+        const name = match[1];
+        const argsStr = match[2] || "{}";
 
-      toolCalls.push({
-        id: `call_manual_gq_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        type: "function",
-        function: { name, arguments: argsStr }
-      });
-
-      // Remover la etiqueta del texto para que no se vea en WhatsApp
-      content = content.replace(match[0], "").trim();
+        // Evitar duplicados si ya se detectó por otro medio
+        if (!toolCalls.some((tc: { function: { name: string; arguments: string } }) => tc.function.name === name && tc.function.arguments === argsStr)) {
+          toolCalls.push({
+            id: `call_manual_gq_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            type: "function",
+            function: { name, arguments: argsStr }
+          });
+          // Limpiar el contenido para que no se vea en el chat
+          content = content.replace(match[0], "").trim();
+        }
+      }
     }
 
     return {
