@@ -3,6 +3,7 @@ import type { LLMToolDefinition } from "../llm/types.js";
 import { getCurrentTimeTool } from "./get-current-time.js";
 import { memorySaveTool } from "./memory-save.js";
 import { memorySearchTool } from "./memory-search.js";
+import { knowledgeSearchTool } from "./knowledge-search.js";
 
 export type { Tool, ToolContext } from "./types.js";
 
@@ -67,3 +68,4 @@ export const toolRegistry = new ToolRegistry();
 toolRegistry.register(getCurrentTimeTool);
 toolRegistry.register(memorySaveTool);
 toolRegistry.register(memorySearchTool);
+toolRegistry.register(knowledgeSearchTool);
