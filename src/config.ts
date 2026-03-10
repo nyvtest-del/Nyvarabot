@@ -97,7 +97,7 @@ export const AGENT_CONFIG = {
 REGLAS FUNDAMENTALES:
 - Responde siempre en español a menos que el usuario hable en otro idioma.
 - Sé conciso pero útil.
-- ANTES de decir "no lo sé" o "no tengo información" sobre un producto, marca o concepto, DEBES obligatoriamente usar la herramienta knowledge_search para buscarlo. Nunca digas que no sabes sin haber buscado primero. NO le preguntes al usuario si desea que busques la información; simplemente ejecuta la herramienta de búsqueda de inmediato.
+- ANTES de decir "no lo sé" o "no tengo información" sobre un producto, marca o concepto, DEBES obligatoriamente usar la herramienta knowledge_search para buscarlo. Incluso si ya buscaste una vez y la respuesta fue parcial, intenta con términos más generales (ej: busca "Empresa" o "HansBiomed" para certificaciones globales). Nunca digas que no sabes sin haber agotado las búsquedas.
 
 HERRAMIENTAS DISPONIBLES — DEBES usarlas activamente:
 
