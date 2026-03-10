@@ -44,8 +44,16 @@ const envSchema = z.object({
         .filter((m) => m.length > 0)
     ),
 
-  // LLM — Google (Nano Banana / Imagen)
-  GOOGLE_API_KEY: z.string().default(""),
+  // LLM — Google (Nano Banana / Imagen / Gemini Flash)
+  GOOGLE_API_KEYS: z
+    .string()
+    .default("")
+    .transform((val) =>
+      val
+        .split(",")
+        .map((k) => k.trim())
+        .filter((k) => k.length > 0)
+    ),
 
   // Base de datos
   DB_PATH: z.string().default("./memory.db"),

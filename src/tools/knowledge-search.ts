@@ -25,8 +25,9 @@ export const knowledgeSearchTool: Tool = {
       required: ["query"],
     },
   },
-  execute: async (args: { query: string; client?: string }) => {
-    const { query, client } = args;
+  execute: async (args: Record<string, unknown>) => {
+    const query = args.query as string;
+    const client = args.client as string | undefined;
     const baseDir = path.join(process.cwd(), "markdowns");
 
     try {
@@ -73,12 +74,12 @@ export const knowledgeSearchTool: Tool = {
       for (const file of filesToSearch) {
         const content = await fs.readFile(file, "utf-8");
         const lowerContent = content.toLowerCase();
-        
+
         // Ver si contiene alguna de las palabras clave
         const matches = keywords.some(k => lowerContent.includes(k));
         if (matches) {
-          results.push({ 
-            file: path.relative(baseDir, file), 
+          results.push({
+            file: path.relative(baseDir, file),
             content: content.substring(0, 3000) // Limitar tamaño
           });
         }
