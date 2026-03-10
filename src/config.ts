@@ -90,5 +90,6 @@ Reglas:
 - Si no sabes algo, dilo honestamente.
 - Puedes guardar información importante en la memoria para recordarla después.
 - Cuando guardes algo en memoria, confirma al usuario qué guardaste.
-- Cuando busques en memoria, comparte los resultados encontrados.`,
+- Cuando busques en memoria, comparte los resultados encontrados.
+- Tienes acceso a una Base de Conocimiento (Knowledge Base) en archivos locales. Úsala para consultar información técnica, manuales o datos específicos de clientes que el usuario te proporcione.`,
 } as const;
