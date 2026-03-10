@@ -35,18 +35,22 @@ export const knowledgeSearchTool: Tool = {
       let filesToSearch: string[] = [];
 
       if (client) {
-        // Buscar solo en la subcarpeta del cliente
-        const clientDir = path.join(baseDir, client.toLowerCase().replace(/\s+/g, '-'));
+        // Buscar la carpeta del cliente de forma case-insensitive
         try {
-          const stats = await fs.stat(clientDir);
-          if (stats.isDirectory()) {
-            const files = await fs.readdir(clientDir);
-            filesToSearch = files
-              .filter(f => f.endsWith(".md") || f.endsWith(".txt"))
-              .map(f => path.join(clientDir, f));
+          const dirs = await fs.readdir(baseDir);
+          const match = dirs.find(d => d.toLowerCase() === client.toLowerCase());
+          if (match) {
+            const clientDir = path.join(baseDir, match);
+            const stats = await fs.stat(clientDir);
+            if (stats.isDirectory()) {
+              const files = await fs.readdir(clientDir);
+              filesToSearch = files
+                .filter(f => f.endsWith(".md") || f.endsWith(".txt"))
+                .map(f => path.join(clientDir, f));
+            }
           }
         } catch {
-          // Si no existe la carpeta del cliente, buscar en todo
+          // Si falla, buscar en todo
         }
       }
 
@@ -67,20 +71,28 @@ export const knowledgeSearchTool: Tool = {
         return "No hay archivos de conocimiento configurados todavía en la carpeta 'markdowns/'.";
       }
 
-      // 2. Buscar contenido relevante (simple keyword match por ahora)
-      const results: { file: string; content: string }[] = [];
-      const keywords = query.toLowerCase().split(/\s+/);
+      // 2. Buscar contenido relevante (keyword match)
+      const results: { file: string; content: string; score: number }[] = [];
+      const keywords = query.toLowerCase().split(/\s+/).filter(k => k.length > 2);
 
       for (const file of filesToSearch) {
         const content = await fs.readFile(file, "utf-8");
         const lowerContent = content.toLowerCase();
 
-        // Ver si contiene alguna de las palabras clave
-        const matches = keywords.some(k => lowerContent.includes(k));
-        if (matches) {
+        // Contar cuántas palabras clave coinciden
+        const matchCount = keywords.filter(k => lowerContent.includes(k)).length;
+        if (matchCount > 0) {
+          // Extraer los fragmentos más relevantes (buscar párrafos con más matches)
+          const paragraphs = content.split(/\n{2,}/);
+          const relevant = paragraphs
+            .filter(p => keywords.some(k => p.toLowerCase().includes(k)))
+            .slice(0, 15) // Máximo 15 párrafos relevantes
+            .join("\n\n");
+
           results.push({
             file: path.relative(baseDir, file),
-            content: content.substring(0, 3000) // Limitar tamaño
+            content: relevant.substring(0, 8000),
+            score: matchCount
           });
         }
       }
@@ -89,12 +101,19 @@ export const knowledgeSearchTool: Tool = {
         return `No encontré información relevante para "${query}" en los archivos de conocimiento.`;
       }
 
-      // 3. Formatear resultados
-      const formatted = results.map(r => `--- ARCHIVO: ${r.file} ---\n${r.content}`).join("\n\n");
-      return `Resultados de búsqueda en conocimiento:\n\n${formatted}`;
+      // Ordenar por relevancia (más matches primero)
+      results.sort((a, b) => b.score - a.score);
+
+      // 3. Formatear resultados (máximo 4 archivos)
+      const formatted = results
+        .slice(0, 4)
+        .map(r => `--- ARCHIVO: ${r.file} ---\n${r.content}`)
+        .join("\n\n");
+      return `Resultados de búsqueda en conocimiento (${results.length} archivos):\n\n${formatted}`;
 
     } catch (error) {
       return `Error buscando en conocimiento: ${error instanceof Error ? error.message : String(error)}`;
     }
   },
+
 };
