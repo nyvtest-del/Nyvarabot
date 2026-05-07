@@ -24,9 +24,9 @@
 | 15/05/2026 | 1. Reel | Línea MINT (Educativo Referencias) | Médicos | Comenta "Mint" |
 | 19/05/2026 | 10. Pieza | Lion HT 0.64mm (Cejas) | Médicos + Pacientes | Revisar perfil |
 | 20/05/2026 | 1. Carrusel | Biomecánica (Bidireccional vs Multi) | Médicos | Comenta "ANCLAJE" |
-| 21/05/2026 | 8. Pieza | Klárdie R+ (Beneficios) | Médicos | Comenta "Klárdie" |
-| 25/05/2026 | 9. Pieza | Klárdie D+ (Beneficios) | Médicos | Comenta "Klárdie" |
-| 27/05/2026 | 2. Reel | Colaboración Corea (Fidelización) | Médicos | Comenta "COREA" |
+| 21/05/2026 | 8. Pieza | Pieza publicitaria: Beneficios R+ | Médicos | Comenta "Klárdie" |
+| 25/05/2026 | 9. Pieza | Pieza publicitaria: Beneficios D+ | Médicos | Comenta "Klárdie" |
+| 27/05/2026 | 2. Reel | Reel: Fidelización Corea (con planeación de tomas) | Médicos | Comenta "COREA" |
 | Por definir | 6. Pieza | Evento Regional Ibagué | Médicos | Contactar ejecutiva |
 
 ---
